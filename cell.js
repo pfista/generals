@@ -1,0 +1,9 @@
+class Cell  {
+  constructor() {
+
+  }
+  
+  getArmies() {
+
+  }
+}
