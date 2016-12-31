@@ -1,6 +1,7 @@
 var client =  require('./client.js')
 var winston = require('winston')
 var board = require('./board.js')
+var peenbot = require('./peenbot.js')
 
 var log = new (winston.Logger)();
 log.add(winston.transports.Console, {
@@ -15,6 +16,9 @@ log.add(winston.transports.Console, {
 class Game {
   constructor(x, y) {
     // Map of event type to the appropriate handler function
+    this.board = null;
+    this.bot = null;
+    
     this.created = false
     this.turn = 0
     this.attackIndex = 0
@@ -114,6 +118,7 @@ class Game {
     this.updateRawMap(diff.map_diff)
     this.updateBoard()
     this.printMap()
+    return this.bot.breadthFirst();
 
     // TODO: update cities diff
     // TODO: return here, or let bot call generals client when sending actions
@@ -139,6 +144,7 @@ class Game {
       let numCols = diff[2]
       let numRows = diff[3]
       this.board = new board.Board(numRows, numCols)
+      this.bot = new peenbot.Bot(this.board)
     }
     var i = 0
     var cursor = 0
