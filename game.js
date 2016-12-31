@@ -1,5 +1,6 @@
 var client =  require('./client.js')
 var winston = require('winston')
+var util = require('./map_utils.js')
 
 var log = new (winston.Logger)();
 log.add(winston.transports.Console, {
@@ -12,23 +13,12 @@ log.add(winston.transports.Console, {
 });
 
 class Tile {
-  /* 
-  *  1 : your general
-  * -1 : visible empty spot 
-  * -2 : visible mountain
-  *  -3 : invisible empty space
-  *  -4 : invisible obstacle (tower or mountain)
-    *
-  */
 
   constructor(value) {
     this.armies
-    this.terrainType = // 1 2 3 3 4
+    this.terrainType = 0;
     this.playerIndex // Owner of the cell
   }
-
-
-
 }
 
 class Game {
@@ -60,52 +50,122 @@ class Game {
     return this.handle[data[0]](data)
   }
 
-  // index 0: ??
-  // index 1: length of rest of array
-  // row size
-  // column size
-  // x*y of bools, what you own
-  //
-  // data: 42["game_update",{"scores":[{"total":12,"tiles":3,"i":0,"dead":false},{"total":12,"tiles":3,"i":1,"dead":false}],"turn":22,"attackIndex":20,"generals":[69,-1],"map_diff":[71,1,2,578],"cities_diff":[0]},null]
+  displayForNum(num) {
+    switch (num) {
+      case (1):
+        console.log(i)
+    }
+
+  }
+
+  getIndexFromXY(x, y) {
+      return y * this.numCols + x;
+  }
+
+  printMaps() {
+    for (var r=0; r < this.numRows; r++) {
+      var rowString = ''
+      for (var j=0; j < this.numCols; j++) {
+        rowString += this.map[this.getIndexFromXY(j,r)]
+      }
+      console.log(rowString)
+    }
+    console.log()
+    for (var r=0; r < this.numRows; r++) {
+      var rowString = ''
+      for (var j=0; j < this.numCols; j++) {
+        rowString += this.terrainMap[this.getIndexFromXY(j,r)]
+      }
+      console.log(rowString)
+    }
+  }
 
   gameUpdateHandler(data) {
     let diff = data[1]
-    //this.scoresDiff = diff.scores
-    //this.generals = diff.generals
-    //this.mapDiff = diff.map_diff
-    //this.citiesDiff = diff.cities_diff
     
+
+    // TODO: update scores
+    
+    // update turn
     this.turn = diff.turn
+
+    // update attackindex
     this.attackIndex = diff.attackIndex
 
-    if (!this.created) {
+    // update generals
+    this.generalPos = diff.generals[this.playerIndex]
+    this.generals = diff.generals.map(position => position)
 
+    /*
+      First pass will only update army count per tile. So if you find a tower,
+      it will just show up as having some number of armies. but in the first
+      pass you don't know what kind of terrain it is, or who owns it
+
+      Second pass will update you on terrain type / ownership
+
+      First pass:
+        skips two tiles, 0 indexed i.e. first position starts at index 2
+        index, num sequential updates, armie count, ..., index
+      
+      Second pass:
+        >= 0 : owned by player id ✅
+        -1 : visible empty space ✅   or visible tower ❓ (towers will have armies)
+        -2 : visible mountain ✅
+        -3 : invisible empty space ✅
+        -4 : invisible obstacle (tower or mountain) ✅
+    */
+
+    var i = 0
+    var offset = -2 // First offset is off by 2
+    var terrainOffset = 0
+    if (diff.map_diff[0] == 0) { // special first update
+      this.diffSize = diff.map_diff[1]
       this.numRows = diff.map_diff[2]
       this.numCols = diff.map_diff[3]
-      this.createMap(this.numRows, this.numCols)
-
-      this.generalPos = diff.generals[this.playerIndex]
-      this.attackIndex = 0
-
-      this.created = true
+      this.createMaps(this.numRows, this.numCols)
+      for (var i=0; i < this.diffSize/2; i++) {
+        this.map[i] = diff.map_diff[i+4]
+        log.debug("Setting t[%d]=%d", i-1+this.diffSize/2, diff.map_diff[i+4-1+this.diffSize/2])
+        this.terrainMap[i-1+this.diffSize/2] = diff.map_diff[i+4-1+this.diffSize/2]
+      }
     }
     else {
-      var from = [this.lastAttackPos, this.generalPos]
-      var fromPos = parseInt(Math.random()*2)
 
-      var to = [from[fromPos]-1, from[fromPos]+1,  from[fromPos]-this.numCols, from[fromPos]+this.numCols]
-      var toPos = parseInt(Math.random()*4)
+      while (i < diff.map_diff.length) {
+        offset += diff.map_diff[i] // TODO: first is +2 // 0 
+        if (offset >= this.diffSize/2) { break }
+        if (offset < -10) { break }
 
-      this.lastAttackPos = to[toPos]
-      log.info("Going %d", to[toPos])
-      return ['attack', from[fromPos], to[toPos], false, this.attackIndex++]
+        var numSequentialUpdates = diff.map_diff[++i] // 2
+        log.debug('offset %d, seqUpdates: %d', offset, numSequentialUpdates)
+
+        for (var j=1; j <= numSequentialUpdates; j++) {
+          log.debug('setting map[%d], from diffmap[%d]=%d', offset+j-1, i+j, diff.map_diff[i+j])
+          this.map[offset+j-1] = diff.map_diff[i+j] 
+        }
+        i += numSequentialUpdates + 1
+
+        terrainOffset += diff.map_diff[i-1+this.diffSize/2]
+
+      }
     }
+
+    this.printMaps()
+
+    // TODO: update cities diff
+    for (var i=0; i < diff.cities_diff.length; i++) {
+
+    }
+
+    // TODO: return here, or let bot call generals client when sending actions
+    // TODO: tell bot the update has been applied
+    //return ['attack', 0, to[toPos], false, this.attackIndex++]
   }
 
-  createMap(rows, cols) {
-    this.map = new Array(rows*cols)
+  createMaps(rows, cols) {
+    this.map = new Array(rows*cols).fill(0)
+    this.terrainMap = new Array(rows*cols).fill(-9)
   }
-
 
   // ["stars",{"duel":69.98790990323106}]
   // ["stars",{"ffa":69.67311444703878}]
@@ -121,20 +181,27 @@ class Game {
 
   // ["pre_game_start"]
   preGameStartHandler(data) {
-    // TODO: possible setup here?
     log.info('Pre game start, %j', data)
   }
   
   // ["game_start",{"playerIndex":0,"replay_id":"Hubx20GBl","chat_room":"game_1483037673430FTtrpyocExTZy84mAAOJ","usernames":["peen 🌸","Anonymous"],"teams":null},null]
   gameStartHandler(data) {
-    log.info('Game start, %j', data)
-    this.playerIndex = parseInt(data[1]['playerIndex'])
+    var json = data[1]
+
+    this.playerIndex = parseInt(json.playerIndex)
+    this.replayId = json.replay_id
+    this.chatroom = json.chat_room
+    this.usernames = json.usernames.map(name => name);
+    // TODO: update teams
+
+    log.debug('Game start, %j', json)
     log.info('Player index is %d', this.playerIndex)
+    log.info("all players: %s", this.usernames)
   }
 
   // ["queue_update",2,0,90]
   queueUpdateHandler(data) {
-    log.info("Game got queue update")
+    this.queueSize = data[1]
   }
 
   // ["game_won",null,null]

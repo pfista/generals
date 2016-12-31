@@ -1,3 +1,7 @@
+function getIndexFromXY(x, y) {
+    return y * this.numCols + x;
+}
+
 class MapUtils {
     constructor(num_rows, num_cols, map_array) {
         
@@ -11,9 +15,6 @@ class MapUtils {
         return [this.getLeft(), this.getAbove(), this.getRight(), this.getBelow()];
     }
     
-    getIndexFromXY(x, y) {
-        return y * this.numCols + x;
-    }
     
     getXYFromIndex(i) {
         return [i % this.numCols, i / this.numCols];
