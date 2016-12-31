@@ -1,6 +1,6 @@
 var client =  require('./client.js')
 var winston = require('winston')
-var util = require('./map_utils.js')
+var board = require('./board.js')
 
 var log = new (winston.Logger)();
 log.add(winston.transports.Console, {
@@ -11,15 +11,6 @@ log.add(winston.transports.Console, {
   silent: false,
   timestamp: true,
 });
-
-class Tile {
-
-  constructor(value) {
-    this.armies
-    this.terrainType = 0;
-    this.playerIndex // Owner of the cell
-  }
-}
 
 class Game {
   constructor(x, y) {
@@ -50,6 +41,7 @@ class Game {
     return this.handle[data[0]](data)
   }
 
+  // TODO: refactor
   getIndexFromRC(r, c) {
       return r * this.numCols + c;
   }
@@ -64,34 +56,48 @@ class Game {
         return '🔲'
       case (-4):
         return '🗻'
+      case (0):
+        return '😈'
+      case (1):
+        return '😡'
+      case (2):
+        return '👹'
+      case (3):
+        return '🐙'
+      case (4):
+        return '💩'
+      case (5):
+        return '🐊'
+      case (6):
+        return '👻'
+      case (7):
+        return '🐬'
       default:
-        return '🔥'
+        return '❓'
     }
   }
 
-  printMaps() {
-    for (var r=0; r < this.numRows; r++) {
+  printMap() {
+    for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
-      for (var c=0; c < this.numCols; c++) {
-        rowString += this.map[this.getIndexFromRC(r,c)]
+      for (var c=0; c < this.board.numCols; c++) {
+        rowString += ('   ' + parseInt(this.rawMap[2+this.getIndexFromRC(r,c)])+' ').slice(-4)
       }
       console.log(rowString)
     }
     console.log()
-    for (var r=0; r < this.numRows; r++) {
+    for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
-      for (var c=0; c < this.numCols; c++) {
-        rowString += this.symbolForTerrain(this.terrainMap[this.getIndexFromRC(r,c)]) + ' '
+      for (var c=0; c < this.board.numCols; c++) {
+        rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.numCols]) + ' '
       }
       console.log(rowString)
     }
   }
 
 
-
   gameUpdateHandler(data) {
     let diff = data[1]
-    
 
     // TODO: update scores
     
@@ -105,83 +111,52 @@ class Game {
     this.generalPos = diff.generals[this.playerIndex]
     this.generals = diff.generals.map(position => position)
 
-    /*
-      First pass will only update army count per tile. So if you find a tower,
-      it will just show up as having some number of armies. but in the first
-      pass you don't know what kind of terrain it is, or who owns it
-
-      Second pass will update you on terrain type / ownership
-
-      1st half of map_diff represents army counts on the map
-        skips two tiles, 0 indexed i.e. first position starts at index 2
-        index, num sequential updates, armie count, ..., index
-      
-      2nd half of map diff represents terrain type and land owners
-        >= 0 : owned by player id ✅
-        -1 : visible empty space ✅   or visible tower ❓ (towers will have armies)
-        -2 : visible mountain ✅
-        -3 : invisible empty space ✅
-        -4 : invisible obstacle (tower or mountain) ✅
-    */
-    // i is the index that represents our progress through diff.map_diff
-    var i = 0
-    // offset is essentially a cursor position into our maps that allows us to
-    // only update the positions the map diff tells us about
-    var offset = -2 // First offset is off by 2. Don't ask me why.
-    var terrainOffset = 0
-    if (diff.map_diff[0] == 0) { // special first update that includes map information
-      this.diffSize = diff.map_diff[1]
-      this.numCols = diff.map_diff[2]
-      this.numRows = diff.map_diff[3]
-      log.debug("rows: %d, cols: %d", this.numRows, this.numCols)
-      this.createMaps(this.numRows, this.numCols)
-      // -2 since it initially has the r and c lengths added. This shoudl be the same as r*c*2
-      for (var i=0; i < (this.diffSize-2)/2; i++) { 
-        log.debug("Setting m[%d]=%d", i, diff.map_diff[i+4])
-        this.map[i] = diff.map_diff[i+4]
-        log.debug("Setting t[%d]=%d", i-1+this.diffSize/2, diff.map_diff[i+4-1+this.diffSize/2])
-        this.terrainMap[i] = diff.map_diff[i+4-1+this.diffSize/2]
-      }
-    }
-    else {
-      var useTerrainMap = false
-      while (i < diff.map_diff.length) {
-        offset += diff.map_diff[i]
-        // The map_diff includes updates to two different maps. Once we've
-        // reached halfway, switch over to updating the terrain map rather than
-        // the armies map
-        if (offset >= this.diffSize/2) { useTerrainMap = true }
-
-        var numSequentialUpdates = diff.map_diff[++i]
-        log.debug('offset %d, seqUpdates: %d', offset, numSequentialUpdates)
-
-        for (var j=1; j <= numSequentialUpdates; j++) {
-          log.debug('setting map[%d], from diffmap[%d]=%d', offset+j-1, i+j, diff.map_diff[i+j])
-          if (useTerrainMap) {
-            this.terrainMap[offset+j-1] = diff.map_diff[i+j] 
-          } else {
-            this.map[offset+j-1] = diff.map_diff[i+j] 
-          }
-        }
-        i += numSequentialUpdates + 1
-      }
-    }
-
-    this.printMaps()
+    this.updateRawMap(diff.map_diff)
+    this.updateBoard()
+    this.printMap()
 
     // TODO: update cities diff
-    for (var i=0; i < diff.cities_diff.length; i++) {
-
-    }
-
     // TODO: return here, or let bot call generals client when sending actions
     // TODO: tell bot the update has been applied
     //return ['attack', 0, to[toPos], false, this.attackIndex++]
   }
 
-  createMaps(rows, cols) {
-    this.map = new Array(rows*cols).fill(0)
-    this.terrainMap = new Array(rows*cols).fill(-9)
+  /*
+    1st half of map_diff represents army counts on the map
+      skips two tiles, 0 indexed i.e. first position starts at index 2
+      index, num sequential updates, armie count, ..., index
+    
+    2nd half of map diff represents terrain type and land owners
+      >= 0 : owned by player id ✅
+      -1 : visible empty space ✅   or visible tower ❓ (towers will have armies)
+      -2 : visible mountain ✅
+      -3 : invisible empty space ✅
+      -4 : invisible obstacle (tower or mountain) ✅
+  */
+  updateRawMap(diff) {
+    if (diff[0] == 0){
+      this.rawMap = new Array(diff[1])
+      let numCols = diff[2]
+      let numRows = diff[3]
+      this.board = new board.Board(numRows, numCols)
+    }
+    var i = 0
+    var cursor = 0
+    var numSequentialChanges
+    while (i < diff.length) {
+        cursor += diff[i++]
+        numSequentialChanges = diff[i++]
+      for (var j=0; j<numSequentialChanges; j++) {
+        this.rawMap[cursor++] = diff[i++]
+      }
+    }
+  }
+
+  updateBoard() {
+    for (var i=0; i < this.board.length; i++) { 
+      this.board.tiles[i].armies = this.rawMap[i+2]
+      this.board.tiles[i].terrainType = this.rawMap[i+2+this.board.length]
+    }
   }
 
   // ["stars",{"duel":69.98790990323106}]
