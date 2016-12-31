@@ -50,35 +50,44 @@ class Game {
     return this.handle[data[0]](data)
   }
 
-  displayForNum(num) {
-    switch (num) {
-      case (1):
-        console.log(i)
-    }
-
+  getIndexFromRC(r, c) {
+      return r * this.numCols + c;
   }
 
-  getIndexFromXY(x, y) {
-      return y * this.numCols + x;
+  symbolForTerrain(num) {
+    switch (num) {
+      case (-1):
+        return '⬜️'
+      case (-2):
+        return '⛰'
+      case (-3):
+        return '🔲'
+      case (-4):
+        return '🗻'
+      default:
+        return '🔥'
+    }
   }
 
   printMaps() {
     for (var r=0; r < this.numRows; r++) {
       var rowString = ''
-      for (var j=0; j < this.numCols; j++) {
-        rowString += this.map[this.getIndexFromXY(j,r)]
+      for (var c=0; c < this.numCols; c++) {
+        rowString += this.map[this.getIndexFromRC(r,c)]
       }
       console.log(rowString)
     }
     console.log()
     for (var r=0; r < this.numRows; r++) {
       var rowString = ''
-      for (var j=0; j < this.numCols; j++) {
-        rowString += this.terrainMap[this.getIndexFromXY(j,r)]
+      for (var c=0; c < this.numCols; c++) {
+        rowString += this.symbolForTerrain(this.terrainMap[this.getIndexFromRC(r,c)]) + ' '
       }
       console.log(rowString)
     }
   }
+
+
 
   gameUpdateHandler(data) {
     let diff = data[1]
@@ -103,50 +112,58 @@ class Game {
 
       Second pass will update you on terrain type / ownership
 
-      First pass:
+      1st half of map_diff represents army counts on the map
         skips two tiles, 0 indexed i.e. first position starts at index 2
         index, num sequential updates, armie count, ..., index
       
-      Second pass:
+      2nd half of map diff represents terrain type and land owners
         >= 0 : owned by player id ✅
         -1 : visible empty space ✅   or visible tower ❓ (towers will have armies)
         -2 : visible mountain ✅
         -3 : invisible empty space ✅
         -4 : invisible obstacle (tower or mountain) ✅
     */
-
+    // i is the index that represents our progress through diff.map_diff
     var i = 0
-    var offset = -2 // First offset is off by 2
+    // offset is essentially a cursor position into our maps that allows us to
+    // only update the positions the map diff tells us about
+    var offset = -2 // First offset is off by 2. Don't ask me why.
     var terrainOffset = 0
-    if (diff.map_diff[0] == 0) { // special first update
+    if (diff.map_diff[0] == 0) { // special first update that includes map information
       this.diffSize = diff.map_diff[1]
-      this.numRows = diff.map_diff[2]
-      this.numCols = diff.map_diff[3]
+      this.numCols = diff.map_diff[2]
+      this.numRows = diff.map_diff[3]
+      log.debug("rows: %d, cols: %d", this.numRows, this.numCols)
       this.createMaps(this.numRows, this.numCols)
-      for (var i=0; i < this.diffSize/2; i++) {
+      // -2 since it initially has the r and c lengths added. This shoudl be the same as r*c*2
+      for (var i=0; i < (this.diffSize-2)/2; i++) { 
+        log.debug("Setting m[%d]=%d", i, diff.map_diff[i+4])
         this.map[i] = diff.map_diff[i+4]
         log.debug("Setting t[%d]=%d", i-1+this.diffSize/2, diff.map_diff[i+4-1+this.diffSize/2])
-        this.terrainMap[i-1+this.diffSize/2] = diff.map_diff[i+4-1+this.diffSize/2]
+        this.terrainMap[i] = diff.map_diff[i+4-1+this.diffSize/2]
       }
     }
     else {
-
+      var useTerrainMap = false
       while (i < diff.map_diff.length) {
-        offset += diff.map_diff[i] // TODO: first is +2 // 0 
-        if (offset >= this.diffSize/2) { break }
-        if (offset < -10) { break }
+        offset += diff.map_diff[i]
+        // The map_diff includes updates to two different maps. Once we've
+        // reached halfway, switch over to updating the terrain map rather than
+        // the armies map
+        if (offset >= this.diffSize/2) { useTerrainMap = true }
 
-        var numSequentialUpdates = diff.map_diff[++i] // 2
+        var numSequentialUpdates = diff.map_diff[++i]
         log.debug('offset %d, seqUpdates: %d', offset, numSequentialUpdates)
 
         for (var j=1; j <= numSequentialUpdates; j++) {
           log.debug('setting map[%d], from diffmap[%d]=%d', offset+j-1, i+j, diff.map_diff[i+j])
-          this.map[offset+j-1] = diff.map_diff[i+j] 
+          if (useTerrainMap) {
+            this.terrainMap[offset+j-1] = diff.map_diff[i+j] 
+          } else {
+            this.map[offset+j-1] = diff.map_diff[i+j] 
+          }
         }
         i += numSequentialUpdates + 1
-
-        terrainOffset += diff.map_diff[i-1+this.diffSize/2]
-
       }
     }
 
