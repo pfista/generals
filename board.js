@@ -8,6 +8,12 @@ class Board {
     this.length = numRows*numCols
   }
 
+  /* Returns a tile for this players general
+   */
+  getGeneral() {
+
+  }
+
   /* Returns all valid tiles that are directly adjacent to this tile, not
    * including diagonally adjacent tiles
    */
