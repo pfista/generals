@@ -25,8 +25,8 @@ class Board {
     var candidates = []
     candidates.push(this.tiles[tile.position-1])
     candidates.push(this.tiles[tile.position+1])
-    candidates.push(this.tiles[tile.position-this.numRows])
-    candidates.push(this.tiles[tile.position+this.numRows])
+    candidates.push(this.tiles[tile.position-this.numCols])
+    candidates.push(this.tiles[tile.position+this.numCols])
     var result = []
     for (var i=0; i<candidates.length; i++){
       if (candidates[i]) {
@@ -43,10 +43,10 @@ class Board {
   getNeighbors(tile) {
     var result = this.getAdjacents(tile)
     var candidates = []
-    candidates.push(this.tiles[tile.position-1-this.numRows])
-    candidates.push(this.tiles[tile.position+1-this.numRows])
-    candidates.push(this.tiles[tile.position-1+this.numRows])
-    candidates.push(this.tiles[tile.position+1+this.numRows])
+    candidates.push(this.tiles[tile.position-1-this.numCols])
+    candidates.push(this.tiles[tile.position+1-this.numCols])
+    candidates.push(this.tiles[tile.position-1+this.numCols])
+    candidates.push(this.tiles[tile.position+1+this.numCols])
     for (var i=0; i<candidates.length; i++){
       if (candidates[i]) {
         result.push(candidates[i])
