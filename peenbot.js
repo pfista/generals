@@ -15,9 +15,7 @@ class Bot {
     
     // First pass to find all desireable tiles
     var desirable_tiles = [];
-    console.log("Player index: " + this.playerIndex);
     var my_tiles = this.board.allTilesforPlayer(this.playerIndex);
-    console.log("My tiles: %j", my_tiles);
     for (var i=0;i<my_tiles.length;i++) {
       var mtile = my_tiles[i];
       var adjacents = this.board.getAdjacents(mtile);
@@ -33,7 +31,6 @@ class Bot {
         }
       }
     }
-    console.log("Desirable tiles: %j", desirable_tiles);
     
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
     var new_attack_paths = []
@@ -46,10 +43,8 @@ class Bot {
         for (var k=0;k<desirable_tiles.length;k++) {
           var dtile = desirable_tiles[k];
           var path = this.astar(mtile, dtile);
-          console.log("astar path: %j", path)
           if (path) {
             if (path.length < shortest_length) {
-              console.log("\tfound shorter path: %j", path)
               shortest_path = path;
               shortest_length = path.length;
             }
@@ -61,15 +56,12 @@ class Bot {
     }
     
     if (new_attack_paths.length > 0) {
-      console.log("New attack paths: %j", new_attack_paths);
       // Sort new_attacks based on shortest distances
       new_attack_paths.sort(function(a,b) {a.length-b.length});
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0];
-      console.log("Best/shortest attack path: %j", shortest_attack_path);
-
-      var atk = new attack.Attack(shortest_attack_path[-1], shortest_attack_path[-2], false);
-      return atk;
+      var atk = new attack.Attack(shortest_attack_path[1], shortest_attack_path[0], false)
+      return atk
     }
   }
   
@@ -119,6 +111,7 @@ class Bot {
 
     return failure
    */
+
   astar(start_tile, goal_tile) {
     var closed_set = []; // Set of positions
     var open_set = []; // Set of vertices
@@ -129,26 +122,16 @@ class Bot {
       this.fScore = manhattan_to_goal_tile;  // estimated distance to goal_tile
       this.came_from = came_from;
       this.tile = tile;
-      this.reconstructPath = function() {
-        /*total_path := [current]
-         *while current in cameFrom.Keys:
-         *   current := cameFrom[current]
-         *   total_path.append(current)
-         *return total_path
-         */
-        var v = this;
-        console.log('reconstruct path: %j', v)
-        console.log("came from %j", v.came_from)
-        
-        var path = [v.tile];
-        v = v.came_from
-        console.log("path: %j", path)
+      this.reconstructPath = function () {
+        var result = []
+        result.push(curr.tile)
+        var v = curr.came_from
         while (v !== null) {
-          console.log('%j',path)
-          path.push[v.tile]
-          v = v.came_from;
+          result.push(v.tile)
+          v = v.came_from
         }
-        return path;
+        return result
+
       }
     }
     
@@ -162,14 +145,13 @@ class Bot {
       // Get vertex in open with potential shortest distance
       // Remove current from open_pq and open_set, add to closed_set
       var curr = open_pq.dequeue()
-      console.log("current: " + curr.tile.position);
       var index = open_set.indexOf(curr);
       open_set.splice(index, 1);
       closed_set.push(curr.tile.position);
       
       // If current equal goal_tile we're done
       if (curr.tile.position == goal_tile.position) {
-        return curr.reconstructPath();
+        return curr.reconstructPath()
       }
       
       // Get neighbors

@@ -5,10 +5,10 @@ class Attack {
    *  half: (boolean) - if true attack with half my armies
    */
   constructor(from, to, half) {
-    this.from = from;
-    this.to = to;
-    this.half = half;
+    this.from = from
+    this.to = to
+    this.half = half
   }
 }
 
-module.exports.Attack = Attack;
+module.exports.Attack = Attack
