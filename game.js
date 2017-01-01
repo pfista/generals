@@ -118,7 +118,11 @@ class Game {
     this.updateRawMap(diff.map_diff)
     this.updateBoard()
     this.printMap()
-    return this.bot.getMove();
+    var atk = this.bot.getMove();
+    if (atk) {
+      return ['attack', atk.from.position, atk.to.position, atk.half, this.attackIndex++];
+    }
+    
 
     // TODO: update cities diff
     // TODO: return here, or let bot call generals client when sending actions

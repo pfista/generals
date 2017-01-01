@@ -84,6 +84,22 @@ class Board {
   shortestWeightedDistance(tileA, tileB) {
 
   }
+  
+  manhattanDistance(a, b) {
+    var ia = this.tiles.indexOf(a);
+    var rc = this.getRCFromIndex(ia);
+    var ra = rc[0];
+    var ca = rc[1];
+    var ib = this.tiles.indexOf(b);
+    rc = this.getRCFromIndex(ia);
+    var rb = rc[0];
+    var cb = rc[1];
+    return Math.abs(ra-rb) + Math.abs(ca-cb);
+  }
+  
+  getRCFromIndex(i) {
+      return [i / this.numCols, i % this.numCols];
+  }
 }
 
 module.exports.Board = Board
