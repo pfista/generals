@@ -2,6 +2,7 @@ class Tile {
   constructor() {
     this.armies
     this.terrainType
+    this.position
   }
 
   /* Returns true if this tile is reachable, regardless of army count

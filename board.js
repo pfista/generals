@@ -2,7 +2,10 @@ var tile = require('./tile.js')
 
 class Board {
   constructor(numRows, numCols, generalPos) {
-    this.tiles = new Array(numRows*numCols).fill(new tile.Tile())
+    this.tiles = []
+    for (var i=0; i<numCols*numRows; i++) {
+      this.tiles[i] = new tile.Tile()
+    }
     this.numRows = numRows
     this.numCols = numCols
     this.length = numRows*numCols
@@ -19,12 +22,18 @@ class Board {
    * including diagonally adjacent tiles
    */
   getAdjacents(tile) {
-    index = this.tiles.indexOf(tile) // TODO: check this
-    var l = this.tiles[index-1]
-    var r = this.tiles[index+1]
-    var u = this.tiles[index-this.numRows]
-    var d = this.tiles[index+this.numRows]
-    return [l, u, r, d]
+    var candidates = []
+    candidates.push(this.tiles[tile.position-1])
+    candidates.push(this.tiles[tile.position+1])
+    candidates.push(this.tiles[tile.position-this.numRows])
+    candidates.push(this.tiles[tile.position+this.numRows])
+    var result = []
+    for (var i=0; i<candidates.length; i++){
+      if (candidates[i]) {
+        result.push(candidates[i])
+      }
+    }
+    return result
   }
 
 
@@ -32,16 +41,20 @@ class Board {
    * diagonally adjacent tiles. 
    */
   getNeighbors(tile) {
-    var result = getAdjacents(tile)
-    index = this.tiles.indexOf(tile)
-    var ul = index-1-this.numRows
-    var ur = index+1-this.numRows
-    var dl = index-1+this.numRows
-    var dr = index+1+this.numRows
-    result.push(ul, ur, dl, dr)
+    var result = this.getAdjacents(tile)
+    var candidates = []
+    candidates.push(this.tiles[tile.position-1-this.numRows])
+    candidates.push(this.tiles[tile.position+1-this.numRows])
+    candidates.push(this.tiles[tile.position-1+this.numRows])
+    candidates.push(this.tiles[tile.position+1+this.numRows])
+    for (var i=0; i<candidates.length; i++){
+      if (candidates[i]) {
+        result.push(candidates[i])
+      }
+    }
+
     return result
   }
-
 
   /* Returns an array of all tiles for a given player index
    */
@@ -62,11 +75,10 @@ class Board {
 
   /* Returns an array of tiles in the shortest path from A to B with the shortest path */
   shortestPath(fromTile, toTile) {
-    result = []
+    var result = []
 
     return result
   }
-
 
   /* includes armies */
   shortestWeightedDistance(tileA, tileB) {

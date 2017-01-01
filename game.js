@@ -162,6 +162,7 @@ class Game {
     for (var i=0; i < this.board.length; i++) { 
       this.board.tiles[i].armies = this.rawMap[i+2]
       this.board.tiles[i].terrainType = this.rawMap[i+2+this.board.length]
+      this.board.tiles[i].position = i
     }
   }
 
