@@ -4,14 +4,25 @@ var winston = require('winston')
 
 var bot_logger = winston.loggers.get('bot');
 
+var log = new (winston.Logger)();
+log.add(winston.transports.Console, {
+  /* error, warn, info, verbose, debug, silly. */
+  level: process.env.LOG_LEVEL,
+  prettyPrint: true,
+  colorize: true,
+  silent: false,
+  timestamp: true,
+});
+
 class Bot {
       
   constructor(player_index, board) {
-    this.playerIndex = player_index;
-    this.board = board;
-    this.general = this.board.getGeneral();
-    this.searchQueue = null;
-    this.attachQueue = [];
+    this.playerIndex = player_index
+    this.board = board
+    this.general = this.board.getGeneral()
+    this.searchQueue = null
+    this.attachQueue = []
+    this.cache = {}
   }
 
   breadthFirst() {
@@ -20,17 +31,14 @@ class Bot {
     var desirable_tiles = [];
     var my_tiles = this.board.allTilesforPlayer(this.playerIndex);
     for (var i=0;i<my_tiles.length;i++) {
-      var mtile = my_tiles[i];
-      var adjacents = this.board.getAdjacents(mtile);
+      var adjacents = this.board.getAdjacents(my_tiles[i]);
       for (var j=0;j<adjacents.length;j++) {
-        var atile = adjacents[j];
         // If reachable and not owned by me
-        if ((atile.reachable()) && (atile.terrainType != this.playerIndex)) {
+        if (adjacents[j].reachable()) {
           // Avoid fortresses
-          if (atile.armies >= 40) {
-            continue;
+          if (adjacents[j].terrainType != this.playerIndex && adjacents[j].armies < 40) {
+            desirable_tiles.push(adjacents[j]);
           }
-          desirable_tiles.push(atile);
         }
       }
     }
@@ -39,14 +47,26 @@ class Bot {
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
     var new_attack_paths = []
     for (var i=0;i<my_tiles.length;i++) {
-      var mtile = my_tiles[i];
-      if (mtile.armies > 1) {
+      if (my_tiles[i].armies > 1) {
         // Find distance from this tile to every desireable tile
         var shortest_length = Infinity;
         var shortest_path = null;
         for (var k=0;k<desirable_tiles.length;k++) {
-          var dtile = desirable_tiles[k];
-          var path = this.astar(mtile, dtile);
+          if (my_tiles[i].position == desirable_tiles[k].position) {
+            // Don't move to the same place
+            continue
+          }
+          var path
+          var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
+          if (cachedPath){
+            console.log("🔥 using cach")
+            path = cachedPath
+          }
+          else {
+            console.log("computing path 💩 ")
+            var path = this.astar(my_tiles[i], desirable_tiles[k]);
+            this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
+          }
           if (path) {
             if (path.length < shortest_length) {
               shortest_path = path;
@@ -60,7 +80,8 @@ class Bot {
         }
       }
     }
-    
+    console.log('attack paths length %d', new_attack_paths.length)
+
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
       new_attack_paths.sort(function(a,b) {return a.length-b.length});
@@ -134,7 +155,7 @@ class Bot {
       this.tile = tile;
       this.reconstructPath = function () {
         var result = []
-        var v = this;
+        var v = this
         while (v) {
           result.push(v.tile)
           v = v.came_from
@@ -170,7 +191,7 @@ class Bot {
         var atile = adjacents[i];
         
         // If not reachable continue
-        if (!atile.reachable()) {
+        if (!atile.reachable() || atile.armies > 39) {
           continue;
         }
         
