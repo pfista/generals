@@ -59,11 +59,9 @@ class Bot {
           var path
           var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
           if (cachedPath){
-            console.log("🔥 using cach")
             path = cachedPath
           }
           else {
-            console.log("computing path 💩 ")
             var path = this.astar(my_tiles[i], desirable_tiles[k]);
             this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
           }
@@ -80,7 +78,6 @@ class Bot {
         }
       }
     }
-    console.log('attack paths length %d', new_attack_paths.length)
 
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
