@@ -118,7 +118,7 @@ class Game {
     this.updateRawMap(diff.map_diff)
     this.updateBoard()
     this.printMap()
-    return this.bot.breadthFirst();
+    return this.bot.getMove();
 
     // TODO: update cities diff
     // TODO: return here, or let bot call generals client when sending actions
@@ -144,7 +144,7 @@ class Game {
       let numCols = diff[2]
       let numRows = diff[3]
       this.board = new board.Board(numRows, numCols, this.generalPos)
-      this.bot = new peenbot.Bot(this.board)
+      this.bot = new peenbot.Bot(this.playerIndex, this.board)
     }
     var i = 0
     var cursor = 0
