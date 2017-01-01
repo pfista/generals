@@ -86,15 +86,13 @@ class Board {
   }
   
   manhattanDistance(a, b) {
-    var ia = this.tiles.indexOf(a);
-    var rc = this.getRCFromIndex(ia);
-    var ra = rc[0];
-    var ca = rc[1];
-    var ib = this.tiles.indexOf(b);
-    rc = this.getRCFromIndex(ia);
-    var rb = rc[0];
-    var cb = rc[1];
-    return Math.abs(ra-rb) + Math.abs(ca-cb);
+    var rc = this.getRCFromIndex(a.position);
+    var rows_a = rc[0];
+    var cols_a = rc[1];
+    var rc = this.getRCFromIndex(b.position);
+    var rows_b = rc[0];
+    var cols_b = rc[1];
+    return Math.abs(rows_a-rows_b) + Math.abs(cols_a-cols_b);
   }
   
   getRCFromIndex(i) {

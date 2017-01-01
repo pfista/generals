@@ -1,5 +1,8 @@
 var PriorityQueue = require('js-priority-queue')
-var attack = require('./attack.js');
+var attack = require('./attack.js')
+var winston = require('winston')
+
+var bot_logger = winston.loggers.get('bot');
 
 class Bot {
       
@@ -24,13 +27,14 @@ class Bot {
         // If reachable and not owned by me
         if ((atile.reachable()) && (atile.terrainType != this.playerIndex)) {
           // Avoid fortresses
-          if (atile.armies > 40) {
+          if (atile.armies >= 40) {
             continue;
           }
           desirable_tiles.push(atile);
         }
       }
     }
+    bot_logger.debug("Desireable: %j", desirable_tiles)
     
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
     var new_attack_paths = []
@@ -50,14 +54,17 @@ class Bot {
             }
           }
         }
-        // Choose shortest as attack
-        new_attack_paths.push(shortest_path);
+        if (shortest_path) {
+          // Choose shortest as attack
+          new_attack_paths.push(shortest_path);
+        }
       }
     }
     
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
-      new_attack_paths.sort(function(a,b) {a.length-b.length});
+      new_attack_paths.sort(function(a,b) {return a.length-b.length});
+      bot_logger.debug("New attack paths: %j", new_attack_paths)
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0];
       var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
@@ -113,6 +120,9 @@ class Bot {
    */
 
   astar(start_tile, goal_tile) {
+    bot_logger.debug("A*")
+    bot_logger.debug("Start tile: %j", start_tile)
+    bot_logger.debug("Goal tile: %j", goal_tile)
     var closed_set = []; // Set of positions
     var open_set = []; // Set of vertices
     var open_pq = new PriorityQueue({ comparator: function(v) { return v.fScore; }}); // Priority queue of vertices
@@ -124,11 +134,13 @@ class Bot {
       this.tile = tile;
       this.reconstructPath = function () {
         var result = []
+        var v = this;
         while (v) {
           result.push(v.tile)
           v = v.came_from
         }
         result.reverse()
+        bot_logger.debug("Result path: %j", result)
         return result
       }
     }
@@ -162,6 +174,11 @@ class Bot {
           continue;
         }
         
+        // Don't pass through fortresses
+        if ((atile.terrainType != this.playerIndex) && (atile.armies >= 40)) {
+          continue;
+        }
+        
         // if neighbor in closed set continue
         if (closed_set.indexOf(atile.position) >= 0) {
           continue;
@@ -183,7 +200,7 @@ class Bot {
         index = indexOf(open_set, atile.position);
         if (index < 0) {
           manhattan = this.board.manhattanDistance(atile, goal_tile);
-          vertex = new Vertex(atile, curr.gScore, manhattan, curr);
+          vertex = new Vertex(atile, tentative_g_score, manhattan, curr);
           open_pq.queue(vertex)
           open_set.push(vertex);
         } else {

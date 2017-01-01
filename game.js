@@ -1,5 +1,19 @@
-var client =  require('./client.js')
 var winston = require('winston')
+// Setup winston
+winston.loggers.add('bot', {
+    console: {
+      level: 'info',
+      colorize: true,
+      label: 'bot',
+    },
+    file: {
+      filename: './bot.log',
+      level: process.env.LOG_LEVEL,
+    }
+  });
+var bot_logger = winston.loggers.get('bot');
+
+var client =  require('./client.js')
 var board = require('./board.js')
 var peenbot = require('./peenbot.js')
 
@@ -82,20 +96,24 @@ class Game {
   }
 
   printMap() {
+    bot_logger.info("Turn: %s", this.turn)
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
         rowString += ('   ' + parseInt(this.rawMap[2+this.getIndexFromRC(r,c)])+' ').slice(-4)
       }
-      console.log(rowString)
+      //console.log(rowString)
+      bot_logger.info(rowString)
     }
-    console.log()
+    //console.log()
+    bot_logger.info(rowString)
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
         rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.board.numCols]) + ' '
       }
-      console.log(rowString)
+      //console.log(rowString)
+      bot_logger.info(rowString)
     }
   }
 
