@@ -56,9 +56,17 @@ class Board {
   }
 
   /* doesn't include armies */
-  shortestDistance(tileA, tileB) {
-
+  shortestDistance(fromTile, toTile) {
+    return shortestPath(fromTile, toTile).length
   }
+
+  /* Returns an array of tiles in the shortest path from A to B with the shortest path */
+  shortestPath(fromTile, toTile) {
+    result = []
+
+    return result
+  }
+
 
   /* includes armies */
   shortestWeightedDistance(tileA, tileB) {
