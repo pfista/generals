@@ -5,6 +5,7 @@ var w = new (winston.Logger)();
 w.add(winston.transports.Console, {
   /* error, warn, info, verbose, debug, silly. */
   level: process.env.LOG_LEVEL,
+  label: 'client',
   prettyPrint: true,
   colorize: true,
   silent: false,

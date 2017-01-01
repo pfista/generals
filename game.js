@@ -2,13 +2,13 @@ var winston = require('winston')
 // Setup winston
 winston.loggers.add('bot', {
     console: {
-      level: 'info',
+      level: process.env.LOG_LEVEL,
       colorize: true,
       label: 'bot',
     },
     file: {
       filename: './bot.log',
-      level: process.env.LOG_LEVEL,
+      level: 'silly'
     }
   });
 var bot_logger = winston.loggers.get('bot');
@@ -21,6 +21,7 @@ var log = new (winston.Logger)();
 log.add(winston.transports.Console, {
   /* error, warn, info, verbose, debug, silly. */
   level: process.env.LOG_LEVEL,
+  label: 'game',
   prettyPrint: true,
   colorize: true,
   silent: false,
@@ -102,17 +103,14 @@ class Game {
       for (var c=0; c < this.board.numCols; c++) {
         rowString += ('   ' + parseInt(this.rawMap[2+this.getIndexFromRC(r,c)])+' ').slice(-4)
       }
-      //console.log(rowString)
       bot_logger.info(rowString)
     }
-    //console.log()
     bot_logger.info(rowString)
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
         rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.board.numCols]) + ' '
       }
-      //console.log(rowString)
       bot_logger.info(rowString)
     }
   }
@@ -141,7 +139,6 @@ class Game {
       return ['attack', atk.from.position, atk.to.position, atk.half, this.attackIndex++];
     }
     
-
     // TODO: update cities diff
     // TODO: return here, or let bot call generals client when sending actions
     // TODO: tell bot the update has been applied
@@ -154,11 +151,11 @@ class Game {
       index, num sequential updates, armie count, ..., index
     
     2nd half of map diff represents terrain type and land owners
-      >= 0 : owned by player id ✅
-      -1 : visible empty space ✅   or visible tower ❓ (towers will have armies)
-      -2 : visible mountain ✅
-      -3 : invisible empty space ✅
-      -4 : invisible obstacle (tower or mountain) ✅
+      >= 0 : owned by player id
+      -1 : visible empty space or visible tower (towers will have armies)
+      -2 : visible mountain
+      -3 : invisible empty space
+      -4 : invisible obstacle (tower or mountain)
   */
   updateRawMap(diff) {
     if (diff[0] == 0){
@@ -220,7 +217,6 @@ class Game {
     log.info("all players: %s", this.usernames)
   }
 
-  // ["queue_update",2,0,90]
   queueUpdateHandler(data) {
     this.queueSize = data[1]
   }

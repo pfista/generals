@@ -8,6 +8,7 @@ var log = new (winston.Logger)();
 log.add(winston.transports.Console, {
   /* error, warn, info, verbose, debug, silly. */
   level: process.env.LOG_LEVEL,
+  label: 'peenbot',
   prettyPrint: true,
   colorize: true,
   silent: false,
@@ -242,21 +243,10 @@ class Bot {
     }
     return null;
   }
-
-  
   
   getMove() {
     return this.breadthFirst();
   }
-
-    //var from = [this.lastAttackPos, this.generalPos]
-    //var fromPos = parseInt(Math.random()*2)
-    
-    //var to = [from[fromPos]-1, from[fromPos]+1,  from[fromPos]-this.numCols, from[fromPos]+this.numCols]
-    //var toPos = parseInt(Math.random()*4)
-    
-    //this.lastAttackPos = to[toPos]
-    //log.info("Going %d", to[toPos])
 }
 
 module.exports.Bot = Bot
