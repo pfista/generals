@@ -60,7 +60,7 @@ class Bot {
       new_attack_paths.sort(function(a,b) {a.length-b.length});
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0];
-      var atk = new attack.Attack(shortest_attack_path[1], shortest_attack_path[0], false)
+      var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
       return atk
     }
   }
@@ -124,14 +124,12 @@ class Bot {
       this.tile = tile;
       this.reconstructPath = function () {
         var result = []
-        result.push(curr.tile)
-        var v = curr.came_from
-        while (v !== null) {
+        while (v) {
           result.push(v.tile)
           v = v.came_from
         }
+        result.reverse()
         return result
-
       }
     }
     
