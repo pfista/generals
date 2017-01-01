@@ -47,7 +47,7 @@ class Game {
 
   // TODO: refactor
   getIndexFromRC(r, c) {
-      return r * this.numCols + c;
+      return r * this.board.numCols + c;
   }
 
   symbolForTerrain(num) {
@@ -93,7 +93,7 @@ class Game {
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
-        rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.numCols]) + ' '
+        rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.board.numCols]) + ' '
       }
       console.log(rowString)
     }
