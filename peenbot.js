@@ -26,7 +26,7 @@ class Bot {
         // If reachable and not owned by me
         if ((atile.reachable()) && (atile.terrainType != this.playerIndex)) {
           // Avoid fortresses
-          if (mtile.armies > 40) {
+          if (atile.armies > 40) {
             continue;
           }
           desirable_tiles.push(atile);
@@ -46,9 +46,10 @@ class Bot {
         for (var k=0;k<desirable_tiles.length;k++) {
           var dtile = desirable_tiles[k];
           var path = this.astar(mtile, dtile);
-          console.log("Shortest path: %j", path)
+          console.log("astar path: %j", path)
           if (path) {
             if (path.length < shortest_length) {
+              console.log("\tfound shorter path: %j", path)
               shortest_path = path;
               shortest_length = path.length;
             }
@@ -65,7 +66,8 @@ class Bot {
       new_attack_paths.sort(function(a,b) {a.length-b.length});
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0];
-      console.log("Shortest attack path: %j", shortest_attack_path);
+      console.log("Best/shortest attack path: %j", shortest_attack_path);
+
       var atk = new attack.Attack(shortest_attack_path[-1], shortest_attack_path[-2], false);
       return atk;
     }
@@ -135,9 +137,14 @@ class Bot {
          *return total_path
          */
         var v = this;
+        console.log('reconstruct path: %j', v)
+        console.log("came from %j", v.came_from)
         
         var path = [v.tile];
+        v = v.came_from
+        console.log("path: %j", path)
         while (v !== null) {
+          console.log('%j',path)
           path.push[v.tile]
           v = v.came_from;
         }
