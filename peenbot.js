@@ -206,7 +206,15 @@ class Bot {
         }
         
         // Calculate this neighbors weight
-        var tentative_g_score = curr.gScore + 1;
+
+        var neighborWeight
+        if (atile.terrainType == this.playerIndex) {
+          neighborWeight = -atile.armies
+        }
+        else {
+          neighborWeight = atile.armies
+        }
+        var tentative_g_score = curr.gScore + neighborWeight
         
         function indexOf(vertices, position) {
           for(var k=0;k<vertices.length;k++) {
