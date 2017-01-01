@@ -47,7 +47,7 @@ class Game {
 
   // TODO: refactor
   getIndexFromRC(r, c) {
-      return r * this.board.numCols + c;
+      return r * this.numCols + c;
   }
 
   symbolForTerrain(num) {
@@ -93,7 +93,7 @@ class Game {
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
-        rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.board.numCols]) + ' '
+        rowString += this.symbolForTerrain(this.rawMap[2+this.getIndexFromRC(r,c)+this.board.numRows*this.numCols]) + ' '
       }
       console.log(rowString)
     }
@@ -116,7 +116,7 @@ class Game {
     this.generals = diff.generals.map(position => position)
 
     this.updateRawMap(diff.map_diff)
-    //this.updateBoard()
+    this.updateBoard()
     this.printMap()
     return this.bot.breadthFirst();
 
@@ -143,7 +143,7 @@ class Game {
       this.rawMap = new Array(diff[1])
       let numCols = diff[2]
       let numRows = diff[3]
-      this.board = new board.Board(numRows, numCols)
+      this.board = new board.Board(numRows, numCols, this.generalPos)
       this.bot = new peenbot.Bot(this.board)
     }
     var i = 0

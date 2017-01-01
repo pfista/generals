@@ -7,7 +7,7 @@ class Tile {
   /* Returns true if this tile is reachable, regardless of army count
    */
   reachable() {
-
+    return this.terrainType >= -1
   }
 }
 

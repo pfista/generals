@@ -94,10 +94,10 @@ class GeneralsClient {
   /**
    * old_xy - 
    * new_xy - 
-   * is50 -
+   * half -
    * attackIndex -
    */
-  attack(old_xy, new_xy, is50, attackIndex) {
+  attack(old_xy, new_xy, half, attackIndex) {
     this.send('attack', old_xy, new_xy, is50, attackIndex)
   }
 
