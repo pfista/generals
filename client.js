@@ -64,6 +64,21 @@ class GeneralsClient {
     this.gws.send(data, this.handleError)
   }
 
+  join1v1Game(userId, username){
+    this.joinCustomGame(userId, '1v1', username)
+  }
+
+  join2v2Game(userId, username) {
+    this.send('join_team', room_id, username, userId)
+  }
+
+  async joinFFAGame(userId, username){
+    w.info("Joining FFA game")
+    this.send('play', username, userId)
+    await sleep(50)
+    this.setUsername(userId, username)
+  }
+
   async joinCustomGame(userId, roomId, username) {
     w.info("Joining custom game")
     this.send('stars_and_rank', userId)

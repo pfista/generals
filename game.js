@@ -42,6 +42,7 @@ class Game {
       'stars' : this.starsHandler.bind(this),
       'rank': this.rankHandler.bind(this),
       'queue_update': this.queueUpdateHandler.bind(this),
+      'team_update': this.teamUpdateHandler.bind(this),
       'pre_game_start':this.preGameStartHandler.bind(this),
       'game_start': this.gameStartHandler.bind(this),
       'game_update': this.gameUpdateHandler.bind(this),
@@ -219,6 +220,16 @@ class Game {
 
   queueUpdateHandler(data) {
     this.queueSize = data[1]
+  }
+
+  // ["team_update",1]
+  teamUpdateHandler(data) {
+
+  }
+
+  // ["team_joined_queue"]
+  teamJoinedHandler(data) {
+
   }
 
   // ["game_won",null,null]
