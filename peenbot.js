@@ -2,9 +2,9 @@ var PriorityQueue = require('js-priority-queue')
 var attack = require('./attack.js')
 var winston = require('winston')
 
-var bot_logger = winston.loggers.get('bot');
+var bot_logger = winston.loggers.get('bot')
 
-var log = new (winston.Logger)();
+var log = new (winston.Logger)()
 log.add(winston.transports.Console, {
   /* error, warn, info, verbose, debug, silly. */
   level: process.env.LOG_LEVEL,
@@ -13,7 +13,7 @@ log.add(winston.transports.Console, {
   colorize: true,
   silent: false,
   timestamp: true,
-});
+})
 
 class Bot {
       
@@ -29,16 +29,16 @@ class Bot {
   breadthFirst() {
     
     // First pass to find all desireable tiles
-    var desirable_tiles = [];
-    var my_tiles = this.board.allTilesforPlayer(this.playerIndex);
+    var desirable_tiles = []
+    var my_tiles = this.board.allTilesforPlayer(this.playerIndex)
     for (var i=0;i<my_tiles.length;i++) {
-      var adjacents = this.board.getAdjacents(my_tiles[i]);
+      var adjacents = this.board.getAdjacents(my_tiles[i])
       for (var j=0;j<adjacents.length;j++) {
         // If reachable and not owned by me
         if (adjacents[j].reachable()) {
           // Avoid fortresses
           if (adjacents[j].terrainType != this.playerIndex && adjacents[j].armies < 40) {
-            desirable_tiles.push(adjacents[j]);
+            desirable_tiles.push(adjacents[j])
           }
         }
       }
@@ -50,8 +50,8 @@ class Bot {
     for (var i=0;i<my_tiles.length;i++) {
       if (my_tiles[i].armies > 1) {
         // Find distance from this tile to every desireable tile
-        var shortest_length = Infinity;
-        var shortest_path = null;
+        var lowest_weight = Infinity
+        var best_path = null
         for (var k=0;k<desirable_tiles.length;k++) {
           if (my_tiles[i].position == desirable_tiles[k].position) {
             // Don't move to the same place
@@ -85,7 +85,7 @@ class Bot {
       new_attack_paths.sort(function(a,b) {return a.length-b.length});
       bot_logger.debug("New attack paths: %j", new_attack_paths)
       // Send shortest attack
-      var shortest_attack_path = new_attack_paths[0];
+      var shortest_attack_path = new_attack_paths[0]
       var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
       return atk
     }
@@ -142,15 +142,15 @@ class Bot {
     bot_logger.debug("A*")
     bot_logger.debug("Start tile: %j", start_tile)
     bot_logger.debug("Goal tile: %j", goal_tile)
-    var closed_set = []; // Set of positions
-    var open_set = []; // Set of vertices
-    var open_pq = new PriorityQueue({ comparator: function(v) { return v.fScore; }}); // Priority queue of vertices
+    var closed_set = [] // Set of positions
+    var open_set = [] // Set of vertices
+    var open_pq = new PriorityQueue({ comparator: function(v) { return v.fScore }}) // Priority queue of vertices
     
     function Vertex(tile, distance_from_start_tile, manhattan_to_goal_tile, came_from) {
-      this.gScore = distance_from_start_tile;  // distance from start_tile
-      this.fScore = manhattan_to_goal_tile;  // estimated distance to goal_tile
-      this.came_from = came_from;
-      this.tile = tile;
+      this.gScore = distance_from_start_tile  // distance from start_tile
+      this.fScore = manhattan_to_goal_tile  // estimated distance to goal_tile
+      this.came_from = came_from
+      this.tile = tile
       this.reconstructPath = function () {
         var result = []
         var v = this
@@ -165,18 +165,18 @@ class Bot {
     }
     
     // Add start to open set
-    var manhattan = this.board.manhattanDistance(start_tile, goal_tile);
-    var vertex = new Vertex(start_tile, 0, manhattan, null);
+    var manhattan = this.board.manhattanDistance(start_tile, goal_tile)
+    var vertex = new Vertex(start_tile, 0, manhattan, null)
     open_pq.queue(vertex)
-    open_set.push(vertex);
+    open_set.push(vertex)
     
     while (open_pq.length > 0) {
       // Get vertex in open with potential shortest distance
       // Remove current from open_pq and open_set, add to closed_set
       var curr = open_pq.dequeue()
-      var index = open_set.indexOf(curr);
-      open_set.splice(index, 1);
-      closed_set.push(curr.tile.position);
+      var index = open_set.indexOf(curr)
+      open_set.splice(index, 1)
+      closed_set.push(curr.tile.position)
       
       // If current equal goal_tile we're done
       if (curr.tile.position == goal_tile.position) {
@@ -184,27 +184,26 @@ class Bot {
       }
       
       // Get neighbors
-      var adjacents = this.board.getAdjacents(curr.tile);
+      var adjacents = this.board.getAdjacents(curr.tile)
       for (var i=0;i<adjacents.length;i++) {
-        var atile = adjacents[i];
+        var atile = adjacents[i]
         
         // If not reachable continue
         if (!atile.reachable() || atile.armies > 39) {
-          continue;
+          continue
         }
         
         // Don't pass through fortresses
         if ((atile.terrainType != this.playerIndex) && (atile.armies >= 40)) {
-          continue;
+          continue
         }
         
         // if neighbor in closed set continue
         if (closed_set.indexOf(atile.position) >= 0) {
-          continue;
+          continue
         }
         
         // Calculate this neighbors weight
-
         var neighborWeight
         if (atile.terrainType == this.playerIndex) {
           neighborWeight = -atile.armies
@@ -217,35 +216,35 @@ class Bot {
         function indexOf(vertices, position) {
           for(var k=0;k<vertices.length;k++) {
             if (vertices[k].tile.position == position) {
-              return k;
+              return k
             }
           }
-          return -1;
+          return -1
         }
         
         // if neighbor is not in open set add it, else check tentative
-        index = indexOf(open_set, atile.position);
+        index = indexOf(open_set, atile.position)
         if (index < 0) {
-          manhattan = this.board.manhattanDistance(atile, goal_tile);
-          vertex = new Vertex(atile, tentative_g_score, manhattan, curr);
+          manhattan = this.board.manhattanDistance(atile, goal_tile)
+          vertex = new Vertex(atile, tentative_g_score, manhattan, curr)
           open_pq.queue(vertex)
-          open_set.push(vertex);
+          open_set.push(vertex)
         } else {
           vertex = open_set[index]
           if (tentative_g_score >= vertex.gScore) {
-            continue;
+            continue
           }
-          manhattan = this.board.manhattanDistance(atile, goal_tile);
-          vertex.gScore = tentative_g_score;
-          vertex.fScore = manhattan;
+          manhattan = this.board.manhattanDistance(atile, goal_tile)
+          vertex.gScore = tentative_g_score
+          vertex.fScore = manhattan
         }
       }
     }
-    return null;
+    return null
   }
   
   getMove() {
-    return this.breadthFirst();
+    return this.breadthFirst()
   }
 }
 
