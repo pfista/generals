@@ -58,31 +58,34 @@ class Bot {
             continue
           }
           var path
-          var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
-          if (cachedPath){
-            path = cachedPath
-          }
-          else {
-            var path = this.astar(my_tiles[i], desirable_tiles[k]);
+          var weight
+          //var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
+          //if (cachedPath){
+            //path = cachedPath
+          //}
+          //else {
+            var result = this.astar(my_tiles[i], desirable_tiles[k])
+            path = result['path']
+            weight = result['weight']
             this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
-          }
+          //}
           if (path) {
-            if (path.length < shortest_length) {
-              shortest_path = path;
-              shortest_length = path.length;
+            if (weight < lowest_weight) {
+              best_path = path
+              lowest_weight = weight
             }
           }
         }
-        if (shortest_path) {
+        if (best_path) {
           // Choose shortest as attack
-          new_attack_paths.push(shortest_path);
+          new_attack_paths.push(best_path)
         }
       }
     }
 
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
-      new_attack_paths.sort(function(a,b) {return a.length-b.length});
+      new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
       bot_logger.debug("New attack paths: %j", new_attack_paths)
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0]
@@ -152,13 +155,16 @@ class Bot {
       this.came_from = came_from
       this.tile = tile
       this.reconstructPath = function () {
-        var result = []
+        var result = {}
+        result['path'] = []
         var v = this
+        result['weight'] = v.gScore
         while (v) {
-          result.push(v.tile)
+          result['path'].push(v.tile)
           v = v.came_from
         }
-        result.reverse()
+        result['path'].reverse()
+        bot_logger.debug('astar path with weight %j', result)
         bot_logger.debug("Result path: %j", result)
         return result
       }
@@ -205,8 +211,11 @@ class Bot {
         
         // Calculate this neighbors weight
         var neighborWeight
-        if (atile.terrainType == this.playerIndex) {
-          neighborWeight = -atile.armies
+        if (atile.terrainType == this.playerIndex && goal_tile.terrainType != this.playerIndex && atile.armies > 1 && atile.position != this.board.generalPos) {
+            neighborWeight = -atile.armies + curr.armies/2
+        }
+        else if (atile.terrainType < 0) {
+          neighborWeight = 1
         }
         else {
           neighborWeight = atile.armies
