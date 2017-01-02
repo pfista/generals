@@ -8,9 +8,12 @@ winston.loggers.add('bot', {
     },
     file: {
       filename: './bot.log',
-      level: 'silly'
+      level: 'silly',
+      timestamp: false,
+      prettyPrint: true,
+      options: {flags: 'w'}
     }
-  });
+  })
 var bot_logger = winston.loggers.get('bot');
 
 var client =  require('./client.js')
