@@ -51,12 +51,12 @@ class Bot {
       if (my_tiles[i].armies > 1) {
         // Find distance from this tile to every desireable tile
         var lowest_weight = Infinity
-        var best_path = null
+        var best_path = {
+          path: null,
+          weight: Infinity,
+        }
         for (var k=0;k<desirable_tiles.length;k++) {
-          if (my_tiles[i].position == desirable_tiles[k].position) {
-            // Don't move to the same place
-            continue
-          }
+          
           var path
           var weight
           //var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
@@ -64,15 +64,15 @@ class Bot {
             //path = cachedPath
           //}
           //else {
-            var result = this.astar(my_tiles[i], desirable_tiles[k])
-            path = result['path']
-            weight = result['weight']
-            this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
+          var weighted_path = this.astar(my_tiles[i], desirable_tiles[k])
+          
+          //this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
           //}
-          if (path) {
-            if (weight < lowest_weight) {
-              best_path = path
-              lowest_weight = weight
+          if (weighted_path) {
+            if (weighted_path.path) {
+              if (weighted_path.weight < best_path.weight) {
+                best_path = weighted_path
+              }
             }
           }
         }
@@ -88,7 +88,7 @@ class Bot {
       new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
       bot_logger.debug("New attack paths: %j", new_attack_paths)
       // Send shortest attack
-      var shortest_attack_path = new_attack_paths[0]
+      var shortest_attack_path = new_attack_paths[0].path
       var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
       return atk
     }
@@ -147,7 +147,7 @@ class Bot {
     bot_logger.debug("Goal tile: %j", goal_tile)
     var closed_set = [] // Set of positions
     var open_set = [] // Set of vertices
-    var open_pq = new PriorityQueue({ comparator: function(v) { return v.fScore }}) // Priority queue of vertices
+    var open_pq = new PriorityQueue({ comparator: function(a,b) { return a.fScore - b.fScore }}) // Priority queue of vertices
     
     function Vertex(tile, distance_from_start_tile, manhattan_to_goal_tile, came_from) {
       this.gScore = distance_from_start_tile  // distance from start_tile
@@ -155,16 +155,18 @@ class Bot {
       this.came_from = came_from
       this.tile = tile
       this.reconstructPath = function () {
-        var result = {}
-        result['path'] = []
+        var path = []
         var v = this
-        result['weight'] = v.gScore
+        var weight = v.gScore
         while (v) {
-          result['path'].push(v.tile)
+          path.push(v.tile)
           v = v.came_from
         }
-        result['path'].reverse()
-        bot_logger.debug('astar path with weight %j', result)
+        path.reverse()
+        var result = {
+          path: path,
+          weight: weight,
+        }
         bot_logger.debug("Result path: %j", result)
         return result
       }
@@ -177,6 +179,7 @@ class Bot {
     open_set.push(vertex)
     
     while (open_pq.length > 0) {
+      bot_logger.silly("Open set: %j", open_set)
       // Get vertex in open with potential shortest distance
       // Remove current from open_pq and open_set, add to closed_set
       var curr = open_pq.dequeue()
@@ -220,7 +223,8 @@ class Bot {
         else {
           neighborWeight = atile.armies
         }
-        var tentative_g_score = curr.gScore + neighborWeight
+        //var tentative_g_score = curr.gScore + neighborWeight
+        var tentative_g_score = curr.gScore + 1
         
         function indexOf(vertices, position) {
           for(var k=0;k<vertices.length;k++) {

@@ -8,7 +8,7 @@ winston.loggers.add('bot', {
     },
     file: {
       filename: './bot.log',
-      level: 'silly',
+      level: 'debug',
       timestamp: false,
       prettyPrint: true,
       options: {flags: 'w'}
@@ -168,6 +168,7 @@ class Game {
       let numRows = diff[3]
       this.board = new board.Board(numRows, numCols, this.generalPos)
       this.bot = new peenbot.Bot(this.playerIndex, this.board)
+      bot_logger.info("Replay id: %s", this.replayId)
     }
     var i = 0
     var cursor = 0
