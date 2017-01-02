@@ -96,7 +96,7 @@ class Board {
   }
   
   getRCFromIndex(i) {
-      return [i / this.numCols, i % this.numCols];
+    return [Math.floor(i / this.numCols), i % this.numCols];
   }
 }
 
