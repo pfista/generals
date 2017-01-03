@@ -41,52 +41,81 @@ class Bot {
             desirable_tiles.push(adjacents[j])
           }
         }
+        
       }
     }
-    bot_logger.debug("Desireable: %j", desirable_tiles)
+    bot_logger.silly("Desireable: %j", desirable_tiles)
     
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
-    var new_attack_paths = []
-    for (var i=0;i<my_tiles.length;i++) {
+    // Find tiles with more than one army
+    my_tiles.sort(function(a,b) { return b.armies - a.armies })
+    
+    bot_logger.silly("My tiles: %j", my_tiles)
+    var ready_tiles = []
+    for (var i=0;i<Math.min(3, my_tiles.length);i++) {
       if (my_tiles[i].armies > 1) {
-        // Find distance from this tile to every desireable tile
-        var lowest_weight = Infinity
-        var best_path = {
-          path: null,
-          weight: Infinity,
-        }
-        for (var k=0;k<desirable_tiles.length;k++) {
-          
-          var path
-          var weight
-          //var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
-          //if (cachedPath){
-            //path = cachedPath
-          //}
-          //else {
-          var weighted_path = this.astar(my_tiles[i], desirable_tiles[k])
-          
-          //this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
-          //}
-          if (weighted_path) {
-            if (weighted_path.path) {
-              if (weighted_path.weight < best_path.weight) {
-                best_path = weighted_path
-              }
-            }
-          }
-        }
-        if (best_path) {
-          // Choose shortest as attack
-          new_attack_paths.push(best_path)
-        }
+        ready_tiles.push(my_tiles[i])
       }
     }
+    bot_logger.silly("Ready tiles: %j", ready_tiles)
+    
+    var new_attack_paths = []
+    for (var i=0;i<desirable_tiles.length;i++) {
+      // Make fscore for every ready tile and only compute ready tiles with low fscore
+      var fscores = []
+      for (var j=0;j<ready_tiles.length;j++) {
+        var fscore = this.board.manhattanDistance(ready_tiles[j], desirable_tiles[i])
+        fscores.push({
+          fscore: fscore,
+          tile: ready_tiles[j],
+        })
+      }
+      fscores.sort(function(a,b) { return a.fscore-b.fscore })
+      bot_logger.silly("Fscores: %j", fscores)
+      
+      var compute_tiles = []
+      for (var j=0;j<Math.min(fscores.length, 5);j++) {
+        compute_tiles.push(fscores[j].tile)
+      }
+      bot_logger.silly("Compute tiles: %j", compute_tiles)
+      
+      // Compute shortest path with A*
+      var weighted_paths = []
+      for (var j=0;j<compute_tiles.length;j++) {
+        var weighted_path = this.astar(compute_tiles[j], desirable_tiles[i])
+        if ((weighted_path) && (weighted_path.path)) {
+          weighted_paths.push(weighted_path)
+        }
+      }
+      bot_logger.silly("Weighted paths: %j", weighted_paths)
+      
+      // Find best path to this desirable tile based on lowest weight
+      var best_path = {
+        path: null,
+        weight: Infinity,
+      }
+      for (var j=0;j<weighted_paths.length;j++) {
+        if (weighted_paths[j].weight < best_path.weight) {
+          best_path = weighted_paths[j]
+        }
+      }
+      if (best_path.path) {
+        // Choose shortest as attack
+        new_attack_paths.push(best_path)
+      }
+    }
+    //var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
+    //if (cachedPath){
+      //path = cachedPath
+    //}
+    //else {
+    //var weighted_path = this.astar(my_tiles[i], desirable_tiles[k])
+    //this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
 
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
       new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
-      bot_logger.debug("New attack paths: %j", new_attack_paths)
+      bot_logger.silly("New attack paths: %j", new_attack_paths)
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0].path
       var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
@@ -142,9 +171,9 @@ class Bot {
    */
 
   astar(start_tile, goal_tile) {
-    bot_logger.debug("A*")
-    bot_logger.debug("Start tile: %j", start_tile)
-    bot_logger.debug("Goal tile: %j", goal_tile)
+    bot_logger.silly("A*")
+    bot_logger.silly("Start tile: %j", start_tile)
+    bot_logger.silly("Goal tile: %j", goal_tile)
     var closed_set = [] // Set of positions
     var open_set = [] // Set of vertices
     var open_pq = new PriorityQueue({ comparator: function(a,b) { return a.fScore - b.fScore }}) // Priority queue of vertices
@@ -167,7 +196,7 @@ class Bot {
           path: path,
           weight: weight,
         }
-        bot_logger.debug("Result path: %j", result)
+        bot_logger.silly("Result path: %j", result)
         return result
       }
     }
@@ -201,6 +230,7 @@ class Bot {
         if (!atile.reachable() || atile.armies > 39) {
           continue
         }
+        
         
         // Don't pass through fortresses
         if ((atile.terrainType != this.playerIndex) && (atile.armies >= 40)) {

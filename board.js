@@ -1,4 +1,6 @@
 var tile = require('./tile.js')
+var winston = require('winston')
+var bot_logger = winston.loggers.get('bot')
 
 class Board {
   constructor(numRows, numCols, generalPos) {
@@ -22,18 +24,29 @@ class Board {
    * including diagonally adjacent tiles
    */
   getAdjacents(tile) {
-    var candidates = []
-    candidates.push(this.tiles[tile.position-1])
-    candidates.push(this.tiles[tile.position+1])
-    candidates.push(this.tiles[tile.position-this.numCols])
-    candidates.push(this.tiles[tile.position+this.numCols])
-    var result = []
-    for (var i=0; i<candidates.length; i++){
-      if (candidates[i]) {
-        result.push(candidates[i])
-      }
+    var adjacents = []
+    // left
+    var p = tile.position - 1
+    if (((p % this.numCols) !== (this.numCols - 1)) && (p > 0)) {
+      adjacents.push(this.tiles[p])
     }
-    return result
+    // right
+    p = tile.position + 1
+    if ((p % this.numCols) !== 0) {
+      adjacents.push(this.tiles[p])
+    }
+    // top
+    p = tile.position - this.numCols
+    if (p >= 0) {
+      adjacents.push(this.tiles[p])
+    }
+    // bottom
+    p = tile.position + this.numCols
+    if (p < this.length) {
+      adjacents.push(this.tiles[p])
+    }
+    bot_logger.debug("Adjacents: %j", adjacents)
+    return adjacents
   }
 
 
