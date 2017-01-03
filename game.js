@@ -109,7 +109,7 @@ class Game {
       }
       bot_logger.info(rowString)
     }
-    bot_logger.info(rowString)
+    bot_logger.info('')
     for (var r=0; r < this.board.numRows; r++) {
       var rowString = ''
       for (var c=0; c < this.board.numCols; c++) {
@@ -122,6 +122,7 @@ class Game {
 
   gameUpdateHandler(data) {
     let diff = data[1]
+    bot_logger.debug("Update: %j", diff)
 
     // TODO: update scores
     

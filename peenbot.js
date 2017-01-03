@@ -15,6 +15,11 @@ log.add(winston.transports.Console, {
   timestamp: true,
 })
 
+Modes = {
+  EXPAND: 0,
+  ATTACK: 1,
+}
+
 class Bot {
       
   constructor(player_index, board) {
@@ -24,9 +29,52 @@ class Bot {
     this.searchQueue = null
     this.attachQueue = []
     this.cache = {}
+    this.mode = Modes.EXPAND
+  }
+  
+  computeFscore(start, goal) {
+    if (this.mode === Modes.EXPAND) {
+      return this.board.manhattanDistance(start, goal)
+    } else if (this.mode === Modes.ATTACK) {
+      var dist = this.board.manhattanDistance(start, goal)
+      var reward = 1
+      return -1 * ((dist * this.ave_armies + goal.armies/2.0) / (1.0 * dist * this.ave_armies)) * reward 
+    }
+  }
+  
+  computeGscore(tile, came_from) {
+    if (this.mode === Modes.EXPAND) {
+      var dist = 1
+      var reward = 1
+      var v = came_from
+      while (v) {
+        dist += 1
+        v = v.came_from
+      }
+      var gscore = dist
+      return gscore
+    } else if (this.mode === Modes.ATTACK) {
+      var dist = 1
+      var armies = tile.armies - 1
+      var reward = 1
+      var v = came_from
+      while (v) {
+        if (v.tile.terrainType === this.playerIndex) {
+          armies += v.tile.armies
+        } else {
+          armies += v.tile.armies / 2.0
+        }
+        dist += 1
+        v = v.came_from
+      }
+      var gscore = -1 * armies / (1.0 * dist * this.ave_armies) * reward
+      return gscore
+    }
   }
 
   breadthFirst() {
+    
+    this.ave_armies = this.board.getMeanMovableArmies(this.playerIndex)
     
     // First pass to find all desireable tiles
     var desirable_tiles = []
@@ -37,14 +85,42 @@ class Bot {
         // If reachable and not owned by me
         if (adjacents[j].reachable()) {
           // Avoid fortresses
-          if (adjacents[j].terrainType != this.playerIndex && adjacents[j].armies < 40) {
+          if (adjacents[j].terrainType != this.playerIndex) {
             desirable_tiles.push(adjacents[j])
           }
         }
         
       }
     }
-    bot_logger.silly("Desireable: %j", desirable_tiles)
+    
+    // Set mode and determine which tiles we're going to attack
+    this.mode = Modes.EXPAND
+    for (var i=0;i<desirable_tiles.length;i++) {
+      if ((desirable_tiles[i].armies > 1) && (desirable_tiles[i].armies * 2 < this.board.getTotalMovableArmies(this.playerIndex))) {
+        this.mode = Modes.ATTACK
+      }
+    }
+    var tiles_to_attack = []
+    switch(this.mode) {
+      case Modes.EXPAND:
+        // Add all tiles with 0-10 armies
+        for (var i=0;i<desirable_tiles.length;i++) {
+          if (desirable_tiles[i].armies < 10) {
+            tiles_to_attack.push(desirable_tiles[i])
+          }
+        }
+        break;
+      case Modes.ATTACK:
+        // Add all tiles with >1 armies
+        for (var i=0;i<desirable_tiles.length;i++) {
+          if (desirable_tiles[i].armies > 1) {
+            tiles_to_attack.push(desirable_tiles[i])
+          }
+        }
+        break;
+    }
+    
+    bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
     
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
     // Find tiles with more than one army
@@ -60,11 +136,11 @@ class Bot {
     bot_logger.silly("Ready tiles: %j", ready_tiles)
     
     var new_attack_paths = []
-    for (var i=0;i<desirable_tiles.length;i++) {
+    for (var i=0;i<tiles_to_attack.length;i++) {
       // Make fscore for every ready tile and only compute ready tiles with low fscore
       var fscores = []
       for (var j=0;j<ready_tiles.length;j++) {
-        var fscore = this.board.manhattanDistance(ready_tiles[j], desirable_tiles[i])
+        var fscore = this.computeFscore(ready_tiles[j], tiles_to_attack[i])
         fscores.push({
           fscore: fscore,
           tile: ready_tiles[j],
@@ -82,7 +158,7 @@ class Bot {
       // Compute shortest path with A*
       var weighted_paths = []
       for (var j=0;j<compute_tiles.length;j++) {
-        var weighted_path = this.astar(compute_tiles[j], desirable_tiles[i])
+        var weighted_path = this.astar(compute_tiles[j], tiles_to_attack[i])
         if ((weighted_path) && (weighted_path.path)) {
           weighted_paths.push(weighted_path)
         }
@@ -104,18 +180,19 @@ class Bot {
         new_attack_paths.push(best_path)
       }
     }
-    //var cachedPath = this.cache[my_tiles[i].position+''+desirable_tiles[k].position]
+    //var cachedPath = this.cache[my_tiles[i].position+''+tiles_to_attack[k].position]
     //if (cachedPath){
       //path = cachedPath
     //}
     //else {
-    //var weighted_path = this.astar(my_tiles[i], desirable_tiles[k])
-    //this.cache[my_tiles[i].position+''+desirable_tiles[k].position] = path
+    //var weighted_path = this.astar(my_tiles[i], tiles_to_attack[k])
+    //this.cache[my_tiles[i].position+''+tiles_to_attack[k].position] = path
 
     if (new_attack_paths.length > 0) {
       // Sort new_attacks based on shortest distances
       new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
       bot_logger.silly("New attack paths: %j", new_attack_paths)
+      bot_logger.debug("Best path: weight=%s %j", new_attack_paths[0].weight, new_attack_paths[0].path)
       // Send shortest attack
       var shortest_attack_path = new_attack_paths[0].path
       var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
@@ -178,9 +255,9 @@ class Bot {
     var open_set = [] // Set of vertices
     var open_pq = new PriorityQueue({ comparator: function(a,b) { return a.fScore - b.fScore }}) // Priority queue of vertices
     
-    function Vertex(tile, distance_from_start_tile, manhattan_to_goal_tile, came_from) {
-      this.gScore = distance_from_start_tile  // distance from start_tile
-      this.fScore = manhattan_to_goal_tile  // estimated distance to goal_tile
+    function Vertex(tile, gscore, fscore, came_from) {
+      this.gScore = gscore  // distance from start_tile
+      this.fScore = fscore  // estimated distance to goal_tile
       this.came_from = came_from
       this.tile = tile
       this.reconstructPath = function () {
@@ -202,8 +279,9 @@ class Bot {
     }
     
     // Add start to open set
-    var manhattan = this.board.manhattanDistance(start_tile, goal_tile)
-    var vertex = new Vertex(start_tile, 0, manhattan, null)
+    var manhattan = this.computeFscore(start_tile, goal_tile)
+    var gscore = this.computeGscore(start_tile, null)
+    var vertex = new Vertex(start_tile, gscore, manhattan, null)
     open_pq.queue(vertex)
     open_set.push(vertex)
     
@@ -227,13 +305,13 @@ class Bot {
         var atile = adjacents[i]
         
         // If not reachable continue
-        if (!atile.reachable() || atile.armies > 39) {
+        if (!atile.reachable()) {
           continue
         }
         
-        
         // Don't pass through fortresses
-        if ((atile.terrainType != this.playerIndex) && (atile.armies >= 40)) {
+        //if ((atile.terrainType != this.playerIndex) && (atile.armies >= this.board.getTotalMovableArmies(this.playerIndex))) {
+        if ((atile.terrainType != this.playerIndex) && (atile.position != goal_tile.position)) {
           continue
         }
         
@@ -254,7 +332,7 @@ class Bot {
           neighborWeight = atile.armies
         }
         //var tentative_g_score = curr.gScore + neighborWeight
-        var tentative_g_score = curr.gScore + 1
+        var tentative_g_score = this.computeGscore(atile, curr)
         
         function indexOf(vertices, position) {
           for(var k=0;k<vertices.length;k++) {
@@ -268,7 +346,7 @@ class Bot {
         // if neighbor is not in open set add it, else check tentative
         index = indexOf(open_set, atile.position)
         if (index < 0) {
-          manhattan = this.board.manhattanDistance(atile, goal_tile)
+          manhattan = this.computeFscore(atile, goal_tile)
           vertex = new Vertex(atile, tentative_g_score, manhattan, curr)
           open_pq.queue(vertex)
           open_set.push(vertex)
@@ -277,7 +355,7 @@ class Bot {
           if (tentative_g_score >= vertex.gScore) {
             continue
           }
-          manhattan = this.board.manhattanDistance(atile, goal_tile)
+          manhattan = this.computeFscore(atile, goal_tile)
           vertex.gScore = tentative_g_score
           vertex.fScore = manhattan
         }

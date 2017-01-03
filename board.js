@@ -45,7 +45,6 @@ class Board {
     if (p < this.length) {
       adjacents.push(this.tiles[p])
     }
-    bot_logger.debug("Adjacents: %j", adjacents)
     return adjacents
   }
 
@@ -80,6 +79,38 @@ class Board {
     }
     return result
   }
+  
+  getTotalArmies(playerIndex) {
+    var armies = 0
+    for (var i=0; i<this.tiles.length; i++) {
+      if (this.tiles[i].terrainType == playerIndex){
+        armies += this.tiles[i].armies
+      }
+    }
+    return armies
+  }
+  
+  getTotalMovableArmies(playerIndex) {
+    var armies = 0
+    for (var i=0; i<this.tiles.length; i++) {
+      if (this.tiles[i].terrainType == playerIndex){
+        armies += this.tiles[i].armies - 1
+      }
+    }
+    return armies
+  }
+  
+  getMeanMovableArmies(playerIndex) {
+    var armies = 0
+    var owned_tiles = 0
+    for (var i=0; i<this.tiles.length; i++) {
+      if (this.tiles[i].terrainType == playerIndex){
+        armies += this.tiles[i].armies - 1
+        owned_tiles++
+      }
+    }
+    return Math.floor(armies/owned_tiles)
+  }
 
   /* doesn't include armies */
   shortestDistance(fromTile, toTile) {
@@ -105,7 +136,22 @@ class Board {
     var rc = this.getRCFromIndex(b.position);
     var rows_b = rc[0];
     var cols_b = rc[1];
-    return Math.abs(rows_a-rows_b) + Math.abs(cols_a-cols_b);
+    var res = Math.abs(rows_a-rows_b) + Math.abs(cols_a-cols_b)
+    return res;
+  }
+  
+  modifiedManhattanDistance(a,b) {
+    var rc = this.getRCFromIndex(a.position);
+    var rows_a = rc[0];
+    var cols_a = rc[1];
+    var rc = this.getRCFromIndex(b.position);
+    var rows_b = rc[0];
+    var cols_b = rc[1];
+    var y = Math.abs(rows_a-rows_b)
+    if (y > 0) y--;
+    var x = Math.abs(rows_a-rows_b)
+    if (x > 0) x--;
+    return x + y;
   }
   
   getRCFromIndex(i) {
