@@ -8,7 +8,7 @@ winston.loggers.add('bot', {
     },
     file: {
       filename: './bot.log',
-      level: 'debug',
+      level: 'silly',
       timestamp: false,
       prettyPrint: true,
       options: {flags: 'w'}

@@ -18,6 +18,8 @@ log.add(winston.transports.Console, {
 Modes = {
   EXPAND: 0,
   ATTACK: 1,
+  QUEUE: 2,
+  DEFEND: 3,
 }
 
 class Bot {
@@ -30,50 +32,93 @@ class Bot {
     this.attachQueue = []
     this.cache = {}
     this.mode = Modes.EXPAND
+    this.queue = []
+    this.attacking = null
+    this.attackingTerrainType = undefined
+    this.general = this.board.getGeneral(this.playerIndex)
   }
   
   computeFscore(start, goal) {
-    if (this.mode === Modes.EXPAND) {
-      return this.board.manhattanDistance(start, goal)
-    } else if (this.mode === Modes.ATTACK) {
-      var dist = this.board.manhattanDistance(start, goal)
-      var reward = 1
-      return -1 * ((dist * this.ave_armies + goal.armies/2.0) / (1.0 * dist * this.ave_armies)) * reward 
+    switch (this.mode) {
+      case Modes.EXPAND:
+        return this.board.manhattanDistance(start, goal)
+        break;
+      case Modes.ATTACK:
+        var dist = this.board.manhattanDistance(start, goal)
+        if ((goal.terrainType > 0) && (goal.terrainType != this.playerIndex)) {
+          var reward = 4
+        } else if (goal.armies > 0) {
+          var reward = 2
+        } else {
+          var reward = 1
+        }
+        return -1 * ((dist * this.ave_armies) / (.1 * dist)) * reward 
+        break;
+      case Modes.DEFEND:
+        //return this.board.manhattanDistance(this.general, goal) * this.board.manhattanDistance(start, goal) / goal.armies / start.armies
+        return this.board.manhattanDistance(start, goal) / goal.armies / start.armies
+        break;
     }
   }
   
   computeGscore(tile, came_from) {
-    if (this.mode === Modes.EXPAND) {
-      var dist = 1
-      var reward = 1
-      var v = came_from
-      while (v) {
-        dist += 1
-        v = v.came_from
-      }
-      var gscore = dist
-      return gscore
-    } else if (this.mode === Modes.ATTACK) {
-      var dist = 1
-      var armies = tile.armies - 1
-      var reward = 1
-      var v = came_from
-      while (v) {
-        if (v.tile.terrainType === this.playerIndex) {
-          armies += v.tile.armies
-        } else {
-          armies += v.tile.armies / 2.0
+    switch (this.mode) {
+      case Modes.EXPAND:
+        var dist = 1
+        var reward = 1
+        var v = came_from
+        while (v) {
+          dist += 1
+          v = v.came_from
         }
-        dist += 1
-        v = v.came_from
-      }
-      var gscore = -1 * armies / (1.0 * dist * this.ave_armies) * reward
-      return gscore
+        var gscore = dist
+        return gscore
+        break;
+      case Modes.ATTACK:
+        var dist = 1
+        var armies = tile.armies - 1
+        var reward = 1
+        var v = came_from
+        while (v) {
+          if (v.tile.terrainType === this.playerIndex) {
+            armies += v.tile.armies
+          } else {
+            reward = v.tile.armies / 2.0
+          }
+          dist += 1
+          v = v.came_from
+        }
+        var gscore = -1 * armies / (.1 * dist) * reward
+        return gscore
+        break;
+      case Modes.DEFEND:
+        var dist_from_general = this.board.manhattanDistance(this.general, tile)
+        var dist = 1
+        var armies = tile.armies - 1
+        var reward = 1
+        var v = came_from
+        while (v) {
+          if (v.tile.terrainType === this.playerIndex) {
+            armies += v.tile.armies
+          } else {
+            reward = v.tile.armies / 2.0
+          }
+          dist += 1
+          v = v.came_from
+        }
+        //var gscore = dist_from_general / dist / armies / reward
+        var gscore = dist / armies / reward
+        return gscore
+        break;
+    }
+    if (this.mode === Modes.EXPAND) {
+      
+    } else if (this.mode === Modes.ATTACK) {
+      
     }
   }
 
   breadthFirst() {
-    
     this.ave_armies = this.board.getMeanMovableArmies(this.playerIndex)
     
     // First pass to find all desireable tiles
@@ -92,43 +137,175 @@ class Bot {
         
       }
     }
-    
-    // Set mode and determine which tiles we're going to attack
-    this.mode = Modes.EXPAND
+    if (this.mode === Modes.DEFEND) {
+      this.mode = Modes.ATTACK
+    }
     for (var i=0;i<desirable_tiles.length;i++) {
-      if ((desirable_tiles[i].armies > 1) && (desirable_tiles[i].armies * 2 < this.board.getTotalMovableArmies(this.playerIndex))) {
-        this.mode = Modes.ATTACK
+      if ((desirable_tiles[i].terrainType > 0) && (this.board.manhattanDistance(desirable_tiles[i], this.general) < 10)) {
+        this.mode = Modes.DEFEND
+        break
       }
     }
+    if (this.mode === Modes.QUEUE) {
+      if (this.queue.length > 0) {
+        bot_logger.info("Mode: ", this.mode)
+        var atk = this.queue.shift()
+        return atk
+      }
+    }
+    
+    // Set mode and determine which tiles we're going to attack
+    if (this.mode !== Modes.DEFEND) {
+      this.mode = Modes.EXPAND
+      for (var i=0;i<desirable_tiles.length;i++) {
+        if ((desirable_tiles[i].armies > 1) && (desirable_tiles[i].armies < 1.5 * this.board.getTotalMovableArmies(this.playerIndex))) {
+          this.mode = Modes.ATTACK
+          break
+        }
+      }
+    }
+    
+    bot_logger.info("Mode: ", this.mode)
     var tiles_to_attack = []
+    var new_attack_paths = []
     switch(this.mode) {
       case Modes.EXPAND:
         // Add all tiles with 0-10 armies
         for (var i=0;i<desirable_tiles.length;i++) {
-          if (desirable_tiles[i].armies < 10) {
+          if (desirable_tiles[i].armies < 1) {
             tiles_to_attack.push(desirable_tiles[i])
           }
         }
+        
+        new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+        
         break;
       case Modes.ATTACK:
-        // Add all tiles with >1 armies
-        for (var i=0;i<desirable_tiles.length;i++) {
-          if (desirable_tiles[i].armies > 1) {
-            tiles_to_attack.push(desirable_tiles[i])
+        // If we're attacking a tile that still hasn't lost, keep attacking it
+        if (this.attacking) {
+          if ((this.attacking.terrainType === this.attackingTerrainType) &&
+              (this.attacking.armies > 1)){
+            tiles_to_attack = [this.attacking]
+            new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+            if (new_attack_paths.length > 0) {
+              break
+            }
           }
         }
-        break;
+        
+        var attackable = []
+        for (var i=0;i<desirable_tiles.length;i++) {
+          if (desirable_tiles[i].armies > 0) {
+            attackable.push(desirable_tiles[i])
+          }
+        }
+        attackable.sort(function(a,b) { return a.armies - b.armies }.bind(this))
+        // Check for enemies
+        var enemies = []
+        for (var i=0;i<attackable.length;i++) {
+          if (attackable[i].terrainType > 0) {
+            enemies.push(attackable[i])
+          }
+        }
+        // Attack other players first
+        new_attack_paths = []
+        //while (enemies.length > 0) {
+        //  //var enemy = enemies.shift()
+        //  tiles_to_attack = enemies
+        //  bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
+        //  new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+        //  if (new_attack_paths.length > 0) {
+        //    break
+        //  }
+        //}
+        // Then attack towers
+        if (new_attack_paths.length === 0) {
+          while (attackable.length > 0) {
+            //var fortress = attackable.shift()
+            tiles_to_attack = attackable
+            bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
+            new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+            if (new_attack_paths.length > 0) {
+              break
+            }
+          }
+        }
+
+          
+          //// Add all tiles with >1 armies
+          //for (var i=0;i<desirable_tiles.length;i++) {
+          //  if (desirable_tiles[i].armies > 1) {
+          //    tiles_to_attack.push(desirable_tiles[i])
+          //  }
+          //}
+          
+        
+        break
+      case Modes.DEFEND:
+        var attackable = []
+        for (var i=0;i<desirable_tiles.length;i++) {
+          if (desirable_tiles[i].armies >= 0) {
+            attackable.push(desirable_tiles[i])
+          }
+        }
+        
+        attackable.sort(function(a,b) { return this.board.manhattanDistance(a, this.general) - this.board.manhattanDistance(b, this.general) }.bind(this))
+        bot_logger.silly("Attackable: %j", attackable)
+        var enemies = []
+        for (var i=0;i<attackable.length;i++) {
+          if (attackable[i].terrainType > 0) {
+            enemies.push(attackable[i])
+          }
+        }
+        new_attack_paths = []
+        while (enemies.length > 0) {
+          tiles_to_attack = enemies
+          bot_logger.silly("Tiles to attack: %j", tiles_to_attack)
+          new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+          if (new_attack_paths.length > 0) {
+            break
+          }
+        }
+        break
     }
     
-    bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
     
+    //var new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+
+    if (new_attack_paths.length > 0) {
+      // Sort new_attacks based on shortest distances
+      new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
+      bot_logger.silly("New attack paths: %j", new_attack_paths)
+      bot_logger.debug("Best path: weight=%s %j", new_attack_paths[0].weight, new_attack_paths[0].path)
+      // Send shortest attack
+      var shortest_attack_path = new_attack_paths[0].path
+      for (var i=0;i<shortest_attack_path.length-1;i++) {
+        var atk = new attack.Attack(shortest_attack_path[i], shortest_attack_path[i+1], false)
+        this.queue.push(atk)
+      }
+      if (this.mode === Modes.ATTACK) {
+        this.attacking = shortest_attack_path[shortest_attack_path.length-1]
+        this.attackingTerrainType = this.attacking.terrainType
+        this.mode = Modes.QUEUE
+        bot_logger.info("Attacking: ", this.attacking)
+        return this.queue.shift()
+      } else {
+        var atk = this.queue.shift()
+        this.queue = []
+        return atk
+      }
+      
+    }
+  }
+  
+  makeAttackPath(my_tiles, tiles_to_attack) {
     // Second pass find all tiles with more than one army and tell them to move in the direction of a desireable tile
     // Find tiles with more than one army
     my_tiles.sort(function(a,b) { return b.armies - a.armies })
     
     bot_logger.silly("My tiles: %j", my_tiles)
     var ready_tiles = []
-    for (var i=0;i<Math.min(3, my_tiles.length);i++) {
+    for (var i=0;i<Math.min(100, my_tiles.length);i++) {
       if (my_tiles[i].armies > 1) {
         ready_tiles.push(my_tiles[i])
       }
@@ -187,17 +364,8 @@ class Bot {
     //else {
     //var weighted_path = this.astar(my_tiles[i], tiles_to_attack[k])
     //this.cache[my_tiles[i].position+''+tiles_to_attack[k].position] = path
-
-    if (new_attack_paths.length > 0) {
-      // Sort new_attacks based on shortest distances
-      new_attack_paths.sort(function(a,b) {return a.weight-b.weight})
-      bot_logger.silly("New attack paths: %j", new_attack_paths)
-      bot_logger.debug("Best path: weight=%s %j", new_attack_paths[0].weight, new_attack_paths[0].path)
-      // Send shortest attack
-      var shortest_attack_path = new_attack_paths[0].path
-      var atk = new attack.Attack(shortest_attack_path[0], shortest_attack_path[1], false)
-      return atk
-    }
+    
+    return new_attack_paths
   }
   
   /**
@@ -301,6 +469,7 @@ class Bot {
       
       // Get neighbors
       var adjacents = this.board.getAdjacents(curr.tile)
+      adjacents.sort(function(a,b) { return this.board.manhattanDistance(a, this.general) - this.board.manhattanDistance(b, this.general) }.bind(this))
       for (var i=0;i<adjacents.length;i++) {
         var atile = adjacents[i]
         
