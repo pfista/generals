@@ -80,11 +80,16 @@ class Bot {
         var reward = 1
         var v = came_from
         while (v) {
-          if (v.tile.terrainType === this.playerIndex) {
-            armies += v.tile.armies
+          armies += v.tile.armies
+          
+          if ((v.terrainType > 0) && (goal.terrainType != this.playerIndex)) {
+            var reward = 4
+          } else if (v.armies > 0) {
+            var reward = 2
           } else {
-            reward = v.tile.armies / 2.0
+            var reward = 1
           }
+          
           dist += 1
           v = v.came_from
         }
@@ -177,14 +182,14 @@ class Bot {
           }
         }
         
-        new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+        my_tiles.sort(function(a,b) { return b.armies - a.armies })
+        new_attack_paths = this.makeAttackPath(my_tiles.slice(0,3), tiles_to_attack)
         
         break;
       case Modes.ATTACK:
         // If we're attacking a tile that still hasn't lost, keep attacking it
         if (this.attacking) {
-          if ((this.attacking.terrainType === this.attackingTerrainType) &&
-              (this.attacking.armies > 1)){
+          if ((this.attacking.terrainType !== this.playerIndex) || (this.attacking.armies < 1)){
             tiles_to_attack = [this.attacking]
             new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
             if (new_attack_paths.length > 0) {
@@ -209,22 +214,23 @@ class Bot {
         }
         // Attack other players first
         new_attack_paths = []
-        //while (enemies.length > 0) {
-        //  //var enemy = enemies.shift()
-        //  tiles_to_attack = enemies
-        //  bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
-        //  new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
-        //  if (new_attack_paths.length > 0) {
-        //    break
-        //  }
-        //}
+        while (enemies.length > 0) {
+          //var enemy = enemies.shift()
+          tiles_to_attack = enemies
+          bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
+          new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+          if (new_attack_paths.length > 0) {
+            break
+          }
+        }
         // Then attack towers
         if (new_attack_paths.length === 0) {
           while (attackable.length > 0) {
             //var fortress = attackable.shift()
             tiles_to_attack = attackable
-            bot_logger.silly("Tiles to attack: %j", tiles_to_attack)  
-            new_attack_paths = this.makeAttackPath(my_tiles, tiles_to_attack)
+            bot_logger.silly("Tiles to attack: %j", tiles_to_attack)
+            my_tiles.sort(function(a,b) { return b.armies - a.armies })
+            new_attack_paths = this.makeAttackPath(my_tiles.slice(0,3), tiles_to_attack)
             if (new_attack_paths.length > 0) {
               break
             }
@@ -305,7 +311,7 @@ class Bot {
     
     bot_logger.silly("My tiles: %j", my_tiles)
     var ready_tiles = []
-    for (var i=0;i<Math.min(100, my_tiles.length);i++) {
+    for (var i=0;i<Math.min(20, my_tiles.length);i++) {
       if (my_tiles[i].armies > 1) {
         ready_tiles.push(my_tiles[i])
       }
