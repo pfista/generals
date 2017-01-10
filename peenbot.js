@@ -45,7 +45,7 @@ class Bot {
         break;
       case Modes.ATTACK:
         var dist = this.board.manhattanDistance(start, goal)
-        if ((goal.terrainType > 0) && (goal.terrainType != this.playerIndex)) {
+        if ((goal.terrainType >= 0) && (goal.terrainType != this.playerIndex)) {
           var reward = 4
         } else if (goal.armies > 0) {
           var reward = 2
@@ -82,7 +82,7 @@ class Bot {
         while (v) {
           armies += v.tile.armies
           
-          if ((v.terrainType > 0) && (goal.terrainType != this.playerIndex)) {
+          if ((v.terrainType >= 0) && (goal.terrainType != this.playerIndex)) {
             var reward = 4
           } else if (v.armies > 0) {
             var reward = 2
@@ -146,7 +146,7 @@ class Bot {
       this.mode = Modes.ATTACK
     }
     for (var i=0;i<desirable_tiles.length;i++) {
-      if ((desirable_tiles[i].terrainType > 0) && (this.board.manhattanDistance(desirable_tiles[i], this.general) < 10)) {
+      if ((desirable_tiles[i].terrainType >= 0) && (this.board.manhattanDistance(desirable_tiles[i], this.general) < 10)) {
         this.mode = Modes.DEFEND
         break
       }
@@ -208,7 +208,7 @@ class Bot {
         // Check for enemies
         var enemies = []
         for (var i=0;i<attackable.length;i++) {
-          if (attackable[i].terrainType > 0) {
+          if (attackable[i].terrainType >= 0) {
             enemies.push(attackable[i])
           }
         }
@@ -259,7 +259,7 @@ class Bot {
         bot_logger.silly("Attackable: %j", attackable)
         var enemies = []
         for (var i=0;i<attackable.length;i++) {
-          if (attackable[i].terrainType > 0) {
+          if (attackable[i].terrainType >= 0) {
             enemies.push(attackable[i])
           }
         }
